@@ -25,7 +25,13 @@ PG = {
     "dbname": os.getenv("PGDATABASE", "flights"),
     "user": os.getenv("PGUSER", os.getenv("USER", "postgres")),
     "password": os.getenv("PGPASSWORD", ""),
+    # Set PGSSLMODE=require when the database is Amazon RDS (encrypts the connection).
+    "sslmode": os.getenv("PGSSLMODE", ""),
 }
+
+# Optional S3 landing zone. Leave S3_BUCKET empty and the pipeline is purely local.
+S3_BUCKET = os.getenv("S3_BUCKET", "")
+S3_PREFIX = os.getenv("S3_PREFIX", "raw/bts/").strip("/") + "/"
 
 RAW_DIR = Path(os.getenv("RAW_DIR", ROOT / "data" / "raw"))
 REPORT_DIR = ROOT / "reports"

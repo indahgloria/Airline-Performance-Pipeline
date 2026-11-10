@@ -32,7 +32,10 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt "moto[server]" pytest
+
+      - name: Unit tests
+        run: python -m pytest -q tests
 
       - name: First run (fake data, 2 months)
         run: python -m pipeline run --source fake --months 2025-01:2025-02 --rows 20000
@@ -50,3 +53,22 @@ jobs:
         with:
           name: report
           path: reports/flight_delays.html
+
+      - name: S3 round trip (mocked S3, no AWS account needed)
+        env:
+          AWS_ENDPOINT_URL: http://localhost:5055
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_DEFAULT_REGION: us-east-1
+          S3_BUCKET: ci-airline-raw
+        run: |
+          moto_server -p 5055 > moto.log 2>&1 &
+          sleep 3
+          python -c "import boto3; boto3.client('s3').create_bucket(Bucket='ci-airline-raw')"
+          # land the files in S3, then rebuild a fresh database from S3 alone
+          python -m pipeline get --source fake --months 2025-01:2025-02 --rows 20000
+          psql -d postgres -c "DROP DATABASE flights WITH (FORCE)" -c "CREATE DATABASE flights"
+          rm -rf data/raw
+          python -m pipeline ingest | tee s3.log
+          grep -q "^  pull " s3.log || { echo "nothing was pulled from S3"; exit 1; }
+          python -m pipeline transform

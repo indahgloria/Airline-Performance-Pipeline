@@ -2,7 +2,7 @@
 
     python -m pipeline run --source fake --months 2025-01:2025-03     # whole pipeline, fake data
     python -m pipeline run --source real --months 2025-01:2025-03     # whole pipeline, real BTS data
-    python -m pipeline ingest                                         # load whatever is in data/raw
+    python -m pipeline ingest                                         # load data/raw (pulls from S3 first if S3_BUCKET is set)
     python -m pipeline transform                                      # dbt build only
     python -m pipeline report                                         # rebuild reports/flight_delays.html
     python -m pipeline status                                         # what's been loaded
@@ -10,7 +10,7 @@
 import argparse
 import time
 
-from .config import BTS_ZIP_NAME, RAW_DIR
+from .config import BTS_ZIP_NAME, RAW_DIR, S3_BUCKET
 
 
 def parse_months(spec: str) -> list[tuple[int, int]]:
@@ -40,6 +40,9 @@ def cmd_get(source: str, months, rows: int) -> list:
         else:
             from .download import download_month
             p = download_month(y, m)
+        if S3_BUCKET:
+            from .s3 import upload
+            upload(p)
         paths.append(p)
     return paths
 
@@ -48,6 +51,9 @@ def cmd_ingest(paths=None, force=False) -> None:
     from .db import bootstrap
     from .ingest import ingest_file
     bootstrap()
+    if not paths and S3_BUCKET:
+        from .s3 import sync_down
+        sync_down()
     paths = paths or sorted(list(RAW_DIR.glob("*.zip")) + list(RAW_DIR.glob("*.csv")))
     if not paths:
         print(f"  nothing to ingest in {RAW_DIR}")

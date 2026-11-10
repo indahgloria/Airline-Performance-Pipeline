@@ -9,5 +9,6 @@ airline_performance:
       user: "{{ env_var('PGUSER', env_var('USER', 'postgres')) }}"
       password: "{{ env_var('PGPASSWORD', '') }}"
       dbname: "{{ env_var('PGDATABASE', 'flights') }}"
+      sslmode: "{{ env_var('PGSSLMODE', 'prefer') }}"
       schema: analytics
       threads: 4
