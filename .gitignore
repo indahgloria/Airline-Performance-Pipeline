@@ -227,3 +227,4 @@ __pycache__/
 transform/target/
 transform/logs/
 transform/.user.yml
+docs/
