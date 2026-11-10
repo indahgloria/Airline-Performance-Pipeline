@@ -11,7 +11,6 @@ It loads monthly flight data from the Bureau of Transportation Statistics into P
 - There are 31 data tests, and GitHub Actions runs the whole thing on every push (twice, to check that re-runs don't change anything).
 
 ![Report](images/report.png)
-*Report built from the generated sample data. Real-data version coming once I load the BTS files.*
 
 ```mermaid
 flowchart LR

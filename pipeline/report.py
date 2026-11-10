@@ -63,7 +63,9 @@ def build_report() -> None:
             SELECT airport_code, city_name, sum(departures) deps,
                    sum(on_time_departure_rate * departures) / sum(departures) otd,
                    sum(avg_taxi_out_min * departures) / sum(departures) taxi
-            FROM marts.mart_airport_monthly GROUP BY 1,2 HAVING sum(departures) >= 500 ORDER BY otd LIMIT 10""")
+            FROM marts.mart_airport_monthly GROUP BY 1,2
+            HAVING sum(departures) >= 0.005 * (SELECT sum(departures) FROM marts.mart_airport_monthly)
+            ORDER BY otd LIMIT 10""")
         loads = _q(con, """
             SELECT count(*) files, sum(rows_loaded) rows_loaded, sum(duration_sec) secs
             FROM (SELECT DISTINCT ON (data_month) * FROM meta.ingestion_log
@@ -73,6 +75,8 @@ def build_report() -> None:
     otp = sum(float(m["otp"]) * m["flights"] for m in monthly) / total
     cancel = sum(float(m["cancel_rate"]) * m["flights"] for m in monthly) / total
     first, last = monthly[0]["data_month"], monthly[-1]["data_month"]
+    # red-eye hours have very few flights and swing wildly; only keep hours with >= 1% of flights
+    hourly = [h for h in hourly if h["flights"] >= 0.01 * total]
 
     # 1. carriers
     f1 = go.Figure(go.Bar(
@@ -95,7 +99,7 @@ def build_report() -> None:
                marker_color="#fed7aa", secondary_y=False)
     f2.add_scatter(x=xs, y=[float(h["otp"]) * 100 for h in hourly], name="On-time rate", mode="lines+markers",
                    line=dict(color=BLUE, width=3), secondary_y=True)
-    _style(f2, "Delays snowball through the day (by scheduled departure hour)")
+    _style(f2, "Delays build through the day (scheduled departure hour)")
     f2.update_yaxes(title="Late-aircraft share", ticksuffix="%", range=[0, late_max * 1.15], dtick=10, secondary_y=False)
     f2.update_yaxes(title="On-time rate", ticksuffix="%", tickformat=".0f", secondary_y=True, showgrid=False)
     f2.update_xaxes(tickangle=0, nticks=9)
@@ -121,21 +125,22 @@ def build_report() -> None:
         hovertemplate="%{x} · %{customdata[0]}<br>%{y:.1f}% on-time departures<br>avg taxi-out %{customdata[1]:.0f} min<extra></extra>",
         text=[f"{float(a['taxi']):.0f} min taxi" for a in airports], textposition="inside", textfont=dict(color="white", size=10),
     ))
-    _style(f4, "10 worst airports for on-time departure (label = avg taxi-out)")
+    _style(f4, "10 worst major airports for on-time departure (label = avg taxi-out)")
     f4.update_yaxes(title="On-time departure rate", ticksuffix="%",
                     range=[min(float(a["otd"]) for a in airports) * 100 - 8, max(float(a["otd"]) for a in airports) * 100 + 4])
 
     best, worst = carriers[-1], carriers[0]
-    early, late = hourly[0], hourly[-1]
+    best_h = max(hourly, key=lambda h: h["otp"])
+    worst_h = min(hourly, key=lambda h: h["otp"])
     findings = [
         f"<b>{best['carrier_name']}</b> was the most punctual carrier ({float(best['otp']):.1%} on time); "
         f"<b>{worst['carrier_name']}</b> the least ({float(worst['otp']):.1%}).",
-        f"On-time rate falls from <b>{float(early['otp']):.0%}</b> for {int(early['h']):02d}:00 departures to "
-        f"<b>{float(late['otp']):.0%}</b> by {int(late['h']):02d}:00, and late-arriving aircraft go from "
-        f"{float(early['late_share']):.0%} to {float(late['late_share']):.0%} of delay minutes. "
-        "Morning flights are the safest bet.",
-        f"<b>{airports[0]['airport_code']}</b> ({airports[0]['city_name']}) had the worst on-time departure rate, "
-        f"with {float(airports[0]['taxi']):.0f}-minute average taxi-outs pointing to ground congestion.",
+        f"Delays build through the day: <b>{float(best_h['otp']):.0%}</b> of {int(best_h['h']):02d}:00 departures arrive on time "
+        f"vs <b>{float(worst_h['otp']):.0%}</b> at {int(worst_h['h']):02d}:00. Late-arriving aircraft cause "
+        f"{float(best_h['late_share']):.0%} of delay minutes early on and {float(worst_h['late_share']):.0%} at the worst hour, "
+        "so one late plane pushes its later flights late too.",
+        f"Among major airports, <b>{airports[0]['airport_code']}</b> ({airports[0]['city_name']}) had the worst on-time "
+        f"departure rate ({float(airports[0]['otd']):.1%}), with an average taxi-out of {float(airports[0]['taxi']):.0f} minutes.",
     ]
 
     kpis = [
