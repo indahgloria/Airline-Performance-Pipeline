@@ -1,0 +1,16 @@
+carrier_code,carrier_name,carrier_type
+WN,Southwest Airlines,mainline
+DL,Delta Air Lines,mainline
+AA,American Airlines,mainline
+UA,United Airlines,mainline
+AS,Alaska Airlines,mainline
+B6,JetBlue Airways,mainline
+NK,Spirit Airlines,ultra-low-cost
+F9,Frontier Airlines,ultra-low-cost
+G4,Allegiant Air,ultra-low-cost
+HA,Hawaiian Airlines,mainline
+OO,SkyWest Airlines,regional
+YX,Republic Airways,regional
+MQ,Envoy Air,regional
+9E,Endeavor Air,regional
+OH,PSA Airlines,regional

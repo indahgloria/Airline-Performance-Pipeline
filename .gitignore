@@ -223,3 +223,7 @@ data/
 logs/
 __pycache__/
 .DS_Store
+# dbt
+transform/target/
+transform/logs/
+transform/.user.yml

@@ -1,0 +1,24 @@
+name: airline_performance
+version: "1.0.0"
+config-version: 2
+profile: airline_performance
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  airline_performance:
+    staging:
+      +schema: staging
+      +materialized: view        # cheap, always fresh, just types + cleaning
+    marts:
+      +schema: marts
+      +materialized: table       # what dashboards/analysts query
+
+seeds:
+  airline_performance:
+    +schema: reference

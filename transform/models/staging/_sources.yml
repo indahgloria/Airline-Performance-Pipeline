@@ -1,0 +1,19 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Landing zone written by pipeline/ingest.py. All text, one partition per month.
+    schema: raw
+    tables:
+      - name: flights
+        config:
+          loaded_at_field: _loaded_at
+          # BTS publishes monthly with ~2 month lag. If nothing new lands for 75 days, something broke.
+          freshness:
+            warn_after: {count: 75, period: day}
+            error_after: {count: 120, period: day}
+        columns:
+          - name: data_month
+            data_tests: [not_null]
+          - name: flight_date
+            data_tests: [not_null]

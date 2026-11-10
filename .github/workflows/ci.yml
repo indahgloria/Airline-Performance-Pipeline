@@ -1,0 +1,52 @@
+name: pipeline-ci
+
+# Every push: spin up a real Postgres, run the whole pipeline on fake data, run all dbt tests,
+# then run it AGAIN and prove nothing changed (idempotency).
+on:
+  push:
+  pull_request:
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pipeline
+          POSTGRES_PASSWORD: pipeline
+          POSTGRES_DB: flights
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pipeline -d flights"
+          --health-interval 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: pipeline
+      PGPASSWORD: pipeline
+      PGDATABASE: flights
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: First run (fake data, 2 months)
+        run: python -m pipeline run --source fake --months 2025-01:2025-02 --rows 20000
+
+      - name: Second run must be a no-op
+        run: |
+          before=$(psql -Atc "select count(*) from marts.fct_flights")
+          python -m pipeline run --source fake --months 2025-01:2025-02 --rows 20000 | tee run2.log
+          after=$(psql -Atc "select count(*) from marts.fct_flights")
+          grep -q "^  load " run2.log && { echo "a file was reloaded on re-run"; exit 1; }
+          [ "$before" = "$after" ] || { echo "row count changed: $before -> $after"; exit 1; }
+          echo "idempotent: $after rows both times"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: report
+          path: reports/flight_delays.html

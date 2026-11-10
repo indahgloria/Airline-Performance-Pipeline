@@ -1,0 +1,21 @@
+# Optional: a throwaway Postgres in Docker, if you don't want to use Postgres.app.
+#   docker compose up -d
+# Runs on port 5433 so it doesn't clash with Postgres.app on 5432.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: pipeline
+      POSTGRES_PASSWORD: pipeline
+      POSTGRES_DB: flights
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pipeline -d flights"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:

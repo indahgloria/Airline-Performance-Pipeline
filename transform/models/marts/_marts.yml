@@ -1,0 +1,65 @@
+version: 2
+
+models:
+  - name: fct_flights
+    description: One row per scheduled flight. Incremental by month.
+    columns:
+      - name: flight_id
+        data_tests: [unique, not_null]
+      - name: flight_date
+        data_tests: [not_null]
+      - name: carrier_code
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_carrier')
+                field: carrier_code
+      - name: origin_airport
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_airport')
+                field: airport_code
+      - name: cancellation_code
+        description: A = carrier, B = weather, C = National Air System, D = security
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['A', 'B', 'C', 'D']
+          - not_null:
+              config:
+                where: "is_cancelled"
+
+  - name: dim_carrier
+    columns:
+      - name: carrier_code
+        data_tests: [unique, not_null]
+      - name: is_in_reference
+        description: False means BTS reported a carrier missing from seeds/carriers.csv - add it.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [true]
+              config:
+                severity: warn
+
+  - name: dim_airport
+    columns:
+      - name: airport_code
+        data_tests: [unique, not_null]
+
+  - name: mart_carrier_monthly
+    columns:
+      - name: on_time_rate
+        data_tests:
+          - not_null
+
+  - name: mart_delay_causes
+    columns:
+      - name: cause
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Carrier', 'Weather', 'Air traffic (NAS)', 'Security', 'Late aircraft']
