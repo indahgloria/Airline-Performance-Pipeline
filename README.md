@@ -10,7 +10,7 @@ It loads monthly flight data from the Bureau of Transportation Statistics into P
 - The dbt fact table is incremental and only rebuilds months that changed.
 - There are 31 data tests, and GitHub Actions runs the whole thing on every push (twice, to check that re-runs don't change anything).
 
-![Report](images/report.png)
+![Report](images/report-real.png)
 
 ```mermaid
 flowchart LR
